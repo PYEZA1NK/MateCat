@@ -1,6 +1,6 @@
 import React from 'react'
 import {map} from 'lodash/collection'
-
+import $ from 'jquery'
 import JobAnalyzeHeader from './JobAnalyzeHeader'
 import JobTableHeader from './JobTableHeader'
 import ChunkAnalyze from './ChunkAnalyze'
@@ -13,14 +13,13 @@ class JobAnalyze extends React.Component {
   }
 
   getChunks() {
-    let self = this
     if (this.props.chunks) {
-      return map(this.props.jobInfo.chunks, function (item, index) {
-        let chunk = self.props.chunks.find(
+      return map(this.props.jobInfo.chunks, (item, index) => {
+        let chunk = this.props.chunks.find(
           (c) => c.get('password') === item.password,
         )
         index++
-        let job = self.props.project.get('jobs').find(function (jobElem) {
+        let job = this.props.project.get('jobs').find(function (jobElem) {
           return jobElem.get('password') === item.password
         })
 
@@ -29,11 +28,15 @@ class JobAnalyze extends React.Component {
             key={item.password}
             files={chunk.get('files').toJS()}
             job={job}
-            project={self.props.project}
+            project={this.props.project}
             total={item.summary}
             index={index}
             chunkInfo={item}
-            chunksSize={self.props.jobInfo.chunks.length}
+            chunksSize={this.props.jobInfo.chunks.length}
+            rates={this.props.jobInfo.payable_rates}
+            workflowType={this.props.project
+              .get('analysis')
+              .get('workflow_type')}
           />
         )
       })
@@ -80,6 +83,11 @@ class JobAnalyze extends React.Component {
     }
   }
   render() {
+    const iceMTRawWords = this.props.jobInfo.chunks.reduce((total, item) => {
+      const iceMT = item.summary.find((t) => t.type === 'ice_mt')
+      if (iceMT) return total + iceMT.raw
+      else total
+    }, 0)
     return (
       <div className="job ui grid">
         <div className="job-body sixteen wide column">
@@ -94,7 +102,13 @@ class JobAnalyze extends React.Component {
                   jobInfo={this.props.jobInfo}
                   status={this.props.status}
                 />
-                <JobTableHeader rates={this.props.jobInfo.payable_rates} />
+                <JobTableHeader
+                  rates={this.props.jobInfo.payable_rates}
+                  iceMTRawWords={iceMTRawWords}
+                  workflowType={this.props.project
+                    .get('analysis')
+                    .get('workflow_type')}
+                />
                 <div className="chunks-analyze">{this.getChunks()}</div>
               </div>
             </div>

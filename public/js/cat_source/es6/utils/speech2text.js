@@ -2,33 +2,36 @@ import SegmentActions from '../actions/SegmentActions'
 import SegmentStore from '../stores/SegmentStore'
 import CatToolActions from '../actions/CatToolActions'
 import $ from 'jquery'
+import UserStore from '../stores/UserStore'
 
 const Speech2Text = {
-  enabled: function () {
-    return !!(
-      'webkitSpeechRecognition' in window && !!config.speech2text_enabled
+  enabled: function ({dictation} = {}) {
+    return (
+      'webkitSpeechRecognition' in window &&
+      (dictation === 1 || UserStore.getUserMetadata()?.dictation === 1)
     )
   },
   disable: function () {
-    if (config.speech2text_enabled) {
-      config.speech2text_enabled = 0
-      Speech2Text.initialized = false
-      $(document).off('contribution:copied')
-    }
+    Speech2Text.initialized = false
+    document.removeEventListener(
+      'contribution:copied',
+      Speech2Text.contributionCopied,
+    )
   },
-  enable: function () {
-    if (!config.speech2text_enabled) {
-      config.speech2text_enabled = 1
-    }
-  },
+  enable: function () {},
   init: function () {
     Speech2Text.initialized = true
     Speech2Text.loadRecognition()
-    $(document).on('contribution:copied', function (ev, data) {
-      if (Speech2Text.microphone && Speech2Text.sid == data.segment.sid) {
-        Speech2Text.finalTranscript = data.translation + ' '
-      }
-    })
+    document.addEventListener(
+      'contribution:copied',
+      Speech2Text.contributionCopied,
+    )
+  },
+  contributionCopied: function (event) {
+    const data = event.detail
+    if (Speech2Text.microphone && Speech2Text.sid == data.segment.sid) {
+      Speech2Text.finalTranscript = data.translation + ' '
+    }
   },
   recognition: null,
   recognizing: false,
@@ -88,7 +91,7 @@ const Speech2Text = {
   },
   startSpeechRecognition: function (microphone) {
     const segment = SegmentStore.getCurrentSegment()
-
+    if (!segment) return
     if (!microphone.hasClass('micSpeechActive')) {
       microphone.addClass('micSpeechActive')
       Speech2Text.animateSpeechActive()
@@ -204,10 +207,5 @@ const Speech2Text = {
     return !Speech2Text.recognizing || match == '100%'
   },
 }
-document.addEventListener('DOMContentLoaded', function (event) {
-  if (Speech2Text.enabled()) {
-    Speech2Text.init()
-  }
-})
 
 export default Speech2Text

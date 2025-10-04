@@ -6,27 +6,20 @@ namespace API\Commons\Validators;
  * @deprecated use Validators\ChunkPasswordValidator
  */
 
+use AbstractControllers\KleinController;
 use API\Commons\Exceptions\NotFoundException;
-use API\Commons\KleinController;
 use Jobs_JobDao;
 use Jobs_JobStruct;
 
 class JobPasswordValidator extends Base {
     /**
-     * @var \Jobs_JobStruct
+     * @var Jobs_JobStruct
      */
-    private $jStruct;
-
-    /**
-     * @var KleinController
-     */
-    protected $controller;
-
+    private Jobs_JobStruct $jStruct;
 
     public function __construct( KleinController $controller ) {
 
-        parent::__construct( $controller->getRequest() );
-        $this->controller = $controller;
+        parent::__construct( $controller );
 
         $this->jStruct           = new Jobs_JobStruct();
         $this->jStruct->id       = $this->controller->params[ 'id_job' ];
@@ -41,7 +34,7 @@ class JobPasswordValidator extends Base {
      * @return mixed|void
      * @throws NotFoundException
      */
-    protected function _validate() {
+    protected function _validate(): void {
 
         if ( empty( $this->jStruct ) ) {
             throw new NotFoundException( "Not Found.", 404 );

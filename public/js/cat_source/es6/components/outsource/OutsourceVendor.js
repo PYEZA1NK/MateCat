@@ -1,5 +1,5 @@
 import React from 'react'
-import Immutable from 'immutable'
+import {fromJS} from 'immutable'
 import Cookies from 'js-cookie'
 import {isUndefined} from 'lodash'
 import {isNull} from 'lodash/lang'
@@ -10,6 +10,8 @@ import GMTSelect from './GMTSelect'
 import {getOutsourceQuote} from '../../api/getOutsourceQuote'
 import {getChangeRates} from '../../api/getChangeRates'
 import CommonUtils from '../../utils/commonUtils'
+import UserStore from '../../stores/UserStore'
+
 import 'react-datepicker/dist/react-datepicker.css'
 class OutsourceVendor extends React.Component {
   constructor(props) {
@@ -76,62 +78,70 @@ class OutsourceVendor extends React.Component {
     let timezoneToShow = this.state.timezone
     let currency = this.getCurrentCurrency()
     getOutsourceQuote(
-      this.props.project.get('id'),
-      this.props.project.get('password'),
-      this.props.job.get('id'),
-      this.props.job.get('password'),
-      fixedDelivery,
-      typeOfService,
-      timezoneToShow,
-      currency,
-    ).then(function (quoteData) {
-      if (quoteData.data && quoteData.data.length > 0) {
-        if (
-          quoteData.data[0][0].quote_available !== '1' &&
-          quoteData.data[0][0].outsourced !== '1'
-        ) {
-          self.setState({
-            outsource: true,
-            quoteNotAvailable: true,
-          })
-          return
-        } else if (
-          quoteData.data[0][0].quote_result !== '1' &&
-          quoteData.data[0][0].outsourced !== '1'
-        ) {
-          self.setState({
-            outsource: true,
+        this.props.project.get('id'),
+        this.props.project.get('password'),
+        this.props.job.get('id'),
+        this.props.job.get('password'),
+        fixedDelivery,
+        typeOfService,
+        timezoneToShow,
+        currency,
+    )
+        .then(function (quoteData) {
+          if (quoteData.data && quoteData.data.length > 0) {
+            if (
+                quoteData.data[0][0].quote_available !== '1' &&
+                quoteData.data[0][0].outsourced !== '1'
+            ) {
+              self.setState({
+                outsource: true,
+                quoteNotAvailable: true,
+              })
+              return
+            } else if (
+                quoteData.data[0][0].quote_result !== '1' &&
+                quoteData.data[0][0].outsourced !== '1'
+            ) {
+              self.setState({
+                outsource: true,
+                errorQuote: true,
+              })
+              return
+            }
+
+            self.quoteResponse = quoteData.data[0]
+            let chunk = fromJS(quoteData.data[0][0])
+
+            self.url_ok = quoteData.return_url.url_ok
+            self.url_ko = quoteData.return_url.url_ko
+            self.confirm_urls = quoteData.return_url.confirm_urls
+            self.data_key = chunk.get('id')
+
+            self.setState({
+              outsource: true,
+              quoteNotAvailable: false,
+              errorQuote: false,
+              chunkQuote: chunk,
+              revision: chunk.get('typeOfService') === 'premium' ? true : false,
+              jobOutsourced: chunk.get('outsourced') === '1',
+              outsourceConfirmed: chunk.get('outsourced') === '1',
+              deliveryDate: new Date(chunk.get('delivery')),
+            })
+          } else {
+            self.setState({
+              outsource: false,
+              errorQuote: true,
+              errorOutsource: true,
+            })
+          }
+        })
+        .catch(() => {
+          this.setState({
+            outsource: false,
             errorQuote: true,
+            errorOutsource: true,
           })
-          return
-        }
-
-        self.quoteResponse = quoteData.data[0]
-        let chunk = Immutable.fromJS(quoteData.data[0][0])
-
-        self.url_ok = quoteData.return_url.url_ok
-        self.url_ko = quoteData.return_url.url_ko
-        self.confirm_urls = quoteData.return_url.confirm_urls
-        self.data_key = chunk.get('id')
-
-        self.setState({
-          outsource: true,
-          quoteNotAvailable: false,
-          errorQuote: false,
-          chunkQuote: chunk,
-          revision: chunk.get('typeOfService') === 'premium' ? true : false,
-          jobOutsourced: chunk.get('outsourced') === '1',
-          outsourceConfirmed: chunk.get('outsourced') === '1',
-          deliveryDate: new Date(chunk.get('delivery')),
         })
-      } else {
-        self.setState({
-          outsource: false,
-          errorQuote: true,
-          errorOutsource: true,
-        })
-      }
-    })
   }
 
   getCurrentCurrency() {
@@ -349,8 +359,9 @@ class OutsourceVendor extends React.Component {
   }
 
   getUserEmail() {
-    if (APP.USER.STORE.user) {
-      return APP.USER.STORE.user.email
+    const userInfo = UserStore.getUser()
+    if (userInfo.user) {
+      return userInfo.user.email
     } else {
       return ''
     }

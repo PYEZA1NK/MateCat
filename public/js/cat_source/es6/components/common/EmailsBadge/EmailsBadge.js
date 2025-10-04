@@ -2,8 +2,12 @@ import React, {useEffect, useRef, useState, useCallback} from 'react'
 import PropTypes from 'prop-types'
 import {EMAIL_PATTERN} from '../../../constants/Constants'
 import {TAG_STATUS, Tag} from './Tag'
+import {isEqual} from 'lodash'
 
 const EMAIL_SEPARATORS = [',', ';', ' ']
+export const SPECIALS_SEPARATORS = {
+  EnterKey: 'EnterKey',
+}
 
 /**
  * Splits emails from string by separators ex. ',' or ';'
@@ -11,9 +15,9 @@ const EMAIL_SEPARATORS = [',', ';', ' ']
  * @param {string} value
  * @returns {Array}
  */
-const splitEmailsBySeparators = (value) => {
+const splitEmailsBySeparators = (value, separators) => {
   const cleanValue = value.replace(/[\n\r]+/g, ' ')
-  return EMAIL_SEPARATORS.reduce(
+  return separators.reduce(
     (acc, cur) =>
       acc
         .map((item) => item.split(cur))
@@ -22,27 +26,34 @@ const splitEmailsBySeparators = (value) => {
     [cleanValue],
   )
 }
-const stringIncludesSeparator = (text) => {
+const stringIncludesSeparator = (text, separators) => {
   const lastChar = text.slice(-1)
-  return EMAIL_SEPARATORS.some((separator) => lastChar === separator)
+  return separators.some((separator) => lastChar === separator)
 }
+const filterSeparators = (separators) =>
+  separators.filter((separator) =>
+    Object.values(SPECIALS_SEPARATORS).every((v) => v !== separator),
+  )
 
 export const EmailsBadge = ({
   name,
   onChange,
   value = [],
-  validatePattern = EMAIL_PATTERN,
+  validateUserTyping,
+  validateChip = EMAIL_PATTERN,
+  separators = EMAIL_SEPARATORS,
   placeholder,
+  disabled,
   error,
 }) => {
   const areaRef = useRef()
   const inputRef = useRef()
   const highlightedEmailIndexRef = useRef(-1)
-  const validatePatternRef = useRef()
-  validatePatternRef.current = validatePattern
+  const validateChipRef = useRef()
+  validateChipRef.current = validateChip
 
   const [inputValue, setInputValue] = useState('')
-  const [emails, setEmails] = useState(() => [...value])
+  const [emails, setEmails] = useState(() => value)
   const [highlightedEmailIndex, setHighlightedEmailIndex] = useState(-1)
 
   // FUNCTIONS
@@ -61,27 +72,38 @@ export const EmailsBadge = ({
     )
     updateHighlightedEmail(-1)
   }
-  const updateEmails = useCallback((newValue) => {
-    const hasSeparator = stringIncludesSeparator(newValue)
-    const emails = splitEmailsBySeparators(newValue)
-    const lastEmail = emails.pop()
-    setEmails((prevState) => {
-      const updatedState = [
-        ...prevState,
-        ...emails,
-        ...(hasSeparator && lastEmail ? [lastEmail] : []),
-      ]
-      return hasSeparator ? removeDuplicates(updatedState) : updatedState
-    })
-    setInputValue(hasSeparator ? '' : lastEmail)
-  }, [])
+  const updateEmails = useCallback(
+    (newValue) => {
+      const filteredSeparators = filterSeparators(separators)
+      const hasSeparator = stringIncludesSeparator(newValue, filteredSeparators)
+      const emails = splitEmailsBySeparators(newValue, filteredSeparators)
+      const lastEmail = emails.pop()
+      setEmails((prevState) => {
+        const updatedState = [
+          ...prevState,
+          ...emails,
+          ...(hasSeparator && lastEmail ? [lastEmail] : []),
+        ]
+        return hasSeparator ? removeDuplicates(updatedState) : updatedState
+      })
+      setInputValue(hasSeparator ? '' : lastEmail)
+    },
+    [separators],
+  )
 
   const handleInputChange = (e) => {
     const newValue = e.target.value
-    if (newValue !== '') {
-      updateEmails(newValue)
-    } else {
-      setInputValue(newValue)
+
+    if (
+      (typeof validateUserTyping === 'function' &&
+        validateUserTyping(newValue)) ||
+      !validateUserTyping
+    ) {
+      if (newValue !== '') {
+        updateEmails(newValue)
+      } else {
+        setInputValue(newValue)
+      }
     }
   }
   const handlePaste = (e) => {
@@ -109,6 +131,14 @@ export const EmailsBadge = ({
       areaRef?.current.focus()
     }
     if (e.code === 'Enter') {
+      if (
+        separators.some(
+          (separator) => separator === SPECIALS_SEPARATORS.EnterKey,
+        )
+      )
+        updateEmails(
+          `${inputRef.current.value}${filterSeparators(separators)[0]}`,
+        )
       e.preventDefault()
     }
   }
@@ -143,8 +173,8 @@ export const EmailsBadge = ({
 
   // EFFECTS
   useEffect(() => {
-    if (!value.length) setEmails([])
-  }, [value.length])
+    setEmails((prevState) => (!isEqual(value, prevState) ? value : prevState))
+  }, [value])
 
   // click outside set value
   useEffect(() => {
@@ -154,25 +184,28 @@ export const EmailsBadge = ({
         !areaRef.current.contains(e.target) &&
         inputRef.current.value
       ) {
-        updateEmails(`${inputRef.current.value}${EMAIL_SEPARATORS[0]}`)
+        updateEmails(
+          `${inputRef.current.value}${filterSeparators(separators)[0]}`,
+        )
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
 
-    inputRef?.current.focus()
-
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [updateEmails])
+  }, [updateEmails, separators])
 
   useEffect(() => {
-    const isFirstEntryWritingValid =
-      !emails.length && validatePatternRef.current.test(inputRef.current.value)
-    onChange(isFirstEntryWritingValid ? [inputRef.current.value] : emails)
+    // const isFirstEntryWritingValid =
+    //   !emails.length && validatePatternRef.current.test(inputRef.current.value)
+    onChange(emails)
   }, [emails, onChange])
 
   // RENDER
   const renderChip = (email, index) => {
-    const isValid = validatePatternRef.current.test(email)
+    const isValid =
+      typeof validateChipRef.current === 'object'
+        ? validateChipRef.current.test(email)
+        : validateChipRef.current(email)
     const isSelected = index === highlightedEmailIndex
     return (
       <div
@@ -196,7 +229,7 @@ export const EmailsBadge = ({
     )
   }
   return (
-    <div className="email-badge">
+    <div className={`email-badge${disabled ? ' email-badge-disabled' : ''}`}>
       <div
         ref={areaRef}
         className="email-badge-fakeInput"
@@ -218,6 +251,7 @@ export const EmailsBadge = ({
           <input
             ref={inputRef}
             name={name}
+            disabled={disabled}
             data-testid="email-input"
             value={inputValue}
             autoComplete="off"
@@ -239,7 +273,9 @@ EmailsBadge.propTypes = {
   name: PropTypes.string.isRequired,
   onChange: PropTypes.func.isRequired,
   value: PropTypes.arrayOf(PropTypes.string),
-  validatePattern: PropTypes.object,
+  validateUserTyping: PropTypes.func,
+  validateChip: PropTypes.oneOfType([PropTypes.object, PropTypes.func]),
   placeholder: PropTypes.string,
+  disabled: PropTypes.bool,
   error: PropTypes.object,
 }

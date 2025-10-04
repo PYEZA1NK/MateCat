@@ -1,6 +1,7 @@
 <?php
 
 use DataAccess\ArrayAccessTrait;
+use Model\Analysis\Constants\InternalMatchesConstants;
 
 class Translations_SegmentTranslationStruct extends DataAccess_AbstractDaoSilentStruct implements DataAccess_IDaoStruct, ArrayAccess {
 
@@ -36,7 +37,7 @@ class Translations_SegmentTranslationStruct extends DataAccess_AbstractDaoSilent
 
     public function isICE(): bool {
         // In some cases, ICEs are not locked (translations from bilingual xliff). Only consider locked ICEs
-        return $this->match_type == Constants_SegmentTranslationsMatchType::ICE && $this->locked;
+        return $this->match_type == InternalMatchesConstants::TM_ICE && $this->locked;
     }
 
     /**
@@ -68,11 +69,11 @@ class Translations_SegmentTranslationStruct extends DataAccess_AbstractDaoSilent
     }
 
     /**
-     * @return Chunks_ChunkStruct[]|null
+     * @return Jobs_JobStruct[]|null
      */
-    public function getChunk(): ?Chunks_ChunkStruct {
+    public function getChunk(): ?Jobs_JobStruct {
         return $this->cachable( __FUNCTION__, $this->id_job, function ( $id_job ) {
-            return Jobs_JobDao::getById( $id_job, 0, new Chunks_ChunkStruct() )[ 0 ] ?? null;
+            return Jobs_JobDao::getById( $id_job, 0 )[ 0 ] ?? null;
         } );
     }
 

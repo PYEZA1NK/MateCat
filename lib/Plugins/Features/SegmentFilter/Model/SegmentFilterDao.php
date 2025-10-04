@@ -8,24 +8,24 @@
 
 namespace Features\SegmentFilter\Model;
 
-use Chunks_ChunkStruct;
-use Constants_SegmentTranslationsMatchType;
 use Constants_TranslationStatus;
 use DataAccess\ShapelessConcreteStruct;
 use DataAccess_AbstractDao;
 use DataAccess_IDaoStruct;
 use Database;
 use Exception;
+use Jobs_JobStruct;
+use Model\Analysis\Constants\InternalMatchesConstants;
 
 class SegmentFilterDao extends DataAccess_AbstractDao {
 
     /**
-     * @param Chunks_ChunkStruct $chunk
+     * @param Jobs_JobStruct $chunk
      * @param FilterDefinition   $filter
      *
      * @return array
      */
-    public static function findSegmentIdsBySimpleFilter( Chunks_ChunkStruct $chunk, FilterDefinition $filter ) {
+    public static function findSegmentIdsBySimpleFilter( Jobs_JobStruct $chunk, FilterDefinition $filter ) {
 
         $sql = "SELECT st.id_segment AS id
             FROM
@@ -71,7 +71,7 @@ class SegmentFilterDao extends DataAccess_AbstractDao {
     }
 
 
-    private static function __getData( Chunks_ChunkStruct $chunk, FilterDefinition $filter ) {
+    private static function __getData( Jobs_JobStruct $chunk, FilterDefinition $filter ) {
         $data = [
                 'id_job'            => $chunk->id,
                 'job_first_segment' => $chunk->job_first_segment,
@@ -89,39 +89,38 @@ class SegmentFilterDao extends DataAccess_AbstractDao {
             switch ( $filter->sampleType() ) {
                 case 'mt':
                     $data = array_merge( $data, [
-                            'match_type' => Constants_SegmentTranslationsMatchType::MT,
+                            'match_type' => InternalMatchesConstants::MT,
                     ] );
                     break;
 
                 case 'matches':
                     $data = array_merge( $data, [
-                            'match_type_100_public' => Constants_SegmentTranslationsMatchType::_100_PUBLIC,
-                            'match_type_100'        => Constants_SegmentTranslationsMatchType::_100,
-                            'match_type_ice'        => Constants_SegmentTranslationsMatchType::ICE
+                            'match_type_100_public' => InternalMatchesConstants::TM_100_PUBLIC,
+                            'match_type_100'        => InternalMatchesConstants::TM_100,
                     ] );
                     break;
 
                 case 'fuzzies_50_74':
                     $data = array_merge( $data, [
-                            'match_type' => Constants_SegmentTranslationsMatchType::_50_74,
+                            'match_type' => InternalMatchesConstants::TM_50_74,
                     ] );
                     break;
 
                 case 'fuzzies_75_84':
                     $data = array_merge( $data, [
-                            'match_type' => Constants_SegmentTranslationsMatchType::_75_84,
+                            'match_type' => InternalMatchesConstants::TM_75_84,
                     ] );
                     break;
 
                 case 'fuzzies_85_94':
                     $data = array_merge( $data, [
-                            'match_type' => Constants_SegmentTranslationsMatchType::_85_94,
+                            'match_type' => InternalMatchesConstants::TM_85_94,
                     ] );
                     break;
 
                 case 'fuzzies_95_99':
                     $data = array_merge( $data, [
-                            'match_type' => Constants_SegmentTranslationsMatchType::_95_99,
+                            'match_type' => InternalMatchesConstants::TM_95_99,
                     ] );
                     break;
 
@@ -152,12 +151,12 @@ class SegmentFilterDao extends DataAccess_AbstractDao {
     }
 
     /**
-     * @param Chunks_ChunkStruct $chunk
+     * @param Jobs_JobStruct $chunk
      * @param FilterDefinition   $filter
      *
      * @return object
      */
-    private static function __getLimit( Chunks_ChunkStruct $chunk, FilterDefinition $filter ) {
+    private static function __getLimit( Jobs_JobStruct $chunk, FilterDefinition $filter ) {
 
         $where = self::__getWhereFromFilter( $filter );
 
@@ -198,13 +197,13 @@ class SegmentFilterDao extends DataAccess_AbstractDao {
     }
 
     /**
-     * @param Chunks_ChunkStruct $chunk
+     * @param Jobs_JobStruct $chunk
      * @param FilterDefinition   $filter
      *
      * @return DataAccess_IDaoStruct[]
      * @throws Exception
      */
-    public static function findSegmentIdsForSample( Chunks_ChunkStruct $chunk, FilterDefinition $filter ) {
+    public static function findSegmentIdsForSample( Jobs_JobStruct $chunk, FilterDefinition $filter ) {
 
         if ( $filter->sampleSize() > 0 ) {
             $limit = self::__getLimit( $chunk, $filter );
@@ -493,8 +492,7 @@ class SegmentFilterDao extends DataAccess_AbstractDao {
            AND st.id_segment
            BETWEEN :job_first_segment AND :job_last_segment
            AND (st.match_type = :match_type_100_public 
-           OR st.match_type = :match_type_100 
-           OR st.match_type = :match_type_ice)
+           OR st.match_type = :match_type_100)
            WHERE 1
            $where->sql
            ORDER BY st.id_segment
@@ -536,7 +534,7 @@ class SegmentFilterDao extends DataAccess_AbstractDao {
         return $sql;
     }
 
-    protected function _buildResult( $data ) {
+    protected function _buildResult( array $array_result ) {
     }
 
 }

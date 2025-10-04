@@ -1,4 +1,4 @@
-@import '../../commons/colors';
+@use '../../commons/colors';
 
 .accordion-component {
   overflow: hidden;
@@ -10,15 +10,12 @@
   align-items: center;
   padding: 14px 24px;
   font: 12px;
-  background-color: $grey3;
+  background-color: colors.$grey3;
   border-radius: 8px;
+  cursor: pointer;
 
   &.accordion-expanded {
     border-radius: 8px 8px 0 0;
-  }
-
-  &:not(.accordion-expanded) {
-    cursor: pointer;
   }
 
   > svg {
@@ -40,6 +37,5 @@
   transform-origin: top center;
   padding: 0 24px;
   border-radius: 0 0 8px 8px;
-  background-color: $grey4;
-  overflow: hidden;
+  background-color: colors.$grey4;
 }

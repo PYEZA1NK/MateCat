@@ -13,31 +13,32 @@
 
 namespace API\Commons\Validators;
 
-use API\Commons\KleinController;
-use Chunks_ChunkStruct;
+use AbstractControllers\KleinController;
 use Exceptions\NotFoundException;
 use Jobs_JobDao;
+use Jobs_JobStruct;
 use LQA\ChunkReviewDao;
 use LQA\ChunkReviewStruct;
+use ReflectionException;
 
 class ChunkPasswordValidator extends Base {
     /**
-     * @var \Chunks_ChunkStruct
+     * @var ?Jobs_JobStruct
      */
-    protected $chunk;
+    protected ?Jobs_JobStruct $chunk = null;
 
     /**
-     * @var ChunkReviewStruct
+     * @var ?ChunkReviewStruct
      */
-    protected $chunkReview;
+    protected ?ChunkReviewStruct $chunkReview = null;
 
-    protected $id_job;
-    protected $password;
-    protected $revision_number;
+    protected int    $id_job;
+    protected string $password;
+    protected ?int    $revision_number = null;
 
     public function __construct( KleinController $controller ) {
 
-        parent::__construct( $controller->getRequest() );
+        parent::__construct( $controller );
 
         $filterArgs = [
                 'id_job'          => [
@@ -69,8 +70,9 @@ class ChunkPasswordValidator extends Base {
     /**
      * @return void
      * @throws NotFoundException
+     * @throws ReflectionException
      */
-    protected function _validate() {
+    protected function _validate(): void {
 
         //try with translate password
         $this->getChunkFromTranslatePassword();
@@ -95,24 +97,27 @@ class ChunkPasswordValidator extends Base {
     }
 
     /**
-     * @throws NotFoundException
+     * @throws ReflectionException
      */
     protected function getChunkFromTranslatePassword() {
-        $this->chunk = Jobs_JobDao::getByIdAndPassword( $this->request->id_job, $this->request->password, 0, new Chunks_ChunkStruct );
+        $this->chunk = Jobs_JobDao::getByIdAndPassword( $this->request->id_job, $this->request->password );
         if ( !empty( $this->chunk ) ) {
-            $this->chunkReview = @( new ChunkReviewDao() )->findChunkReviews( $this->chunk )[ 0 ];
+            $this->chunkReview = ( new ChunkReviewDao() )->findChunkReviews( $this->chunk )[ 0 ] ?? null;
         }
     }
 
-    public function getChunk() {
+    public function getChunk(): Jobs_JobStruct {
         return $this->chunk;
     }
 
-    public function getJobId() {
+    /**
+     * @return int
+     */
+    public function getJobId(): int {
         return $this->id_job;
     }
 
-    public function getChunkReview() {
+    public function getChunkReview(): ChunkReviewStruct {
         return $this->chunkReview;
     }
 

@@ -1,17 +1,27 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import {EmailsBadge} from '../EmailsBadge/EmailsBadge'
+import {EmailsBadge, SPECIALS_SEPARATORS} from '../EmailsBadge/EmailsBadge'
 
 export const WordsBadge = ({
   name,
   onChange,
   value = [],
   placeholder,
+  disabled,
   error,
 }) => {
   return (
     <EmailsBadge
-      {...{name, onChange, value, validatePattern: /./, placeholder, error}}
+      {...{
+        name,
+        onChange,
+        value,
+        validateChip: /./,
+        separators: [',', SPECIALS_SEPARATORS.EnterKey],
+        placeholder,
+        disabled,
+        error,
+      }}
     />
   )
 }

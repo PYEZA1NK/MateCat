@@ -13,7 +13,7 @@ const SegmentQRLine = ({
   showIceMatchInfo = false,
   tte,
   showIsPretranslated,
-  rev
+  rev,
 }) => {
   const textRef = useRef()
   const allowHTML = (string) => {
@@ -54,13 +54,17 @@ const SegmentQRLine = ({
         ? 101
         : parseInt(segment.get('suggestion_match'))
     suggestionMatchClass =
-      suggestionMatch === 101
-        ? 'per-blu'
-        : suggestionMatch === 100
-          ? 'per-green'
-          : suggestionMatch > 0 && suggestionMatch <= 99
-            ? 'per-orange'
-            : ''
+      segment.get('suggestion_source') === 'MT'
+        ? 'per-yellow'
+        : suggestionMatch === 101
+          ? 'per-blu'
+          : suggestionMatch === 100
+            ? 'per-green'
+            : suggestionMatch > 0 && suggestionMatch <= 99
+              ? 'per-orange'
+              : suggestionMatch === 0
+                ? 'per-red'
+                : ''
   }
 
   const copyText = async (e) => {
@@ -116,19 +120,15 @@ const SegmentQRLine = ({
 
       {showSuggestionSource ? (
         <div className="segment-content qr-spec">
-          <div
-            className={
-              segment.get('suggestion_source') === 'MT' ? 'per-yellow' : null
-            }
-          >
-            <b>{segment.get('suggestion_source')}</b>
+          <div className={'tm-percent ' + suggestionMatchClass}>
+            {segment.get('suggestion_source') !== 'MT' ? (
+              <b>
+                {segment.get('suggestion_source')} - {suggestionMatch}%
+              </b>
+            ) : (
+              <b>{segment.get('suggestion_source')}</b>
+            )}
           </div>
-          {segment.get('suggestion_source') &&
-          segment.get('suggestion_source') !== 'MT' ? (
-            <div className={'tm-percent ' + suggestionMatchClass}>
-              {suggestionMatch}%
-            </div>
-          ) : null}
         </div>
       ) : null}
 
@@ -166,11 +166,11 @@ const SegmentQRLine = ({
           </div>
         </div>
       ) : showIsPretranslated && rev ? (
-          <div className="segment-content qr-spec">
-              <div>
-                  <b>Pre-Approved</b>
-              </div>
+        <div className="segment-content qr-spec">
+          <div>
+            <b>Pre-Approved</b>
           </div>
+        </div>
       ) : null}
       {!(showIceMatchInfo && segment.get('ice_locked') === '1') &&
       !showSuggestionSource &&

@@ -10,16 +10,18 @@ namespace Features\TranslationEvents\Model;
 
 use Constants_TranslationStatus;
 use DataAccess\ShapelessConcreteStruct;
+use DataAccess_IDaoStruct;
 use Database;
 use PDO;
+use ReflectionException;
 
 class TranslationEventDao extends \DataAccess_AbstractDao {
 
     const TABLE       = "segment_translation_events";
     const STRUCT_TYPE = "\Features\TranslationVersions\Model\TranslationEventStruct";
 
-    protected static $auto_increment_field = [ 'id' ];
-    protected static $primary_keys         = [ 'id' ];
+    protected static array $auto_increment_field = [ 'id' ];
+    protected static array $primary_keys         = [ 'id' ];
 
     public function unsetFinalRevisionFlag( int $id_job, array $id_segments, array $source_pages ): int {
 
@@ -143,7 +145,8 @@ class TranslationEventDao extends \DataAccess_AbstractDao {
      * @param array $id_segment_list
      * @param int   $id_job
      *
-     * @return \DataAccess_IDaoStruct[]
+     * @return DataAccess_IDaoStruct[]
+     * @throws ReflectionException
      */
     public function getTteForSegments( $id_segment_list, $id_job ) {
         $in  = str_repeat( '?,', count( $id_segment_list ) - 1 ) . '?';
@@ -164,7 +167,7 @@ class TranslationEventDao extends \DataAccess_AbstractDao {
         $stmt              = $this->_getStatementForQuery( $sql );
         $id_segment_list[] = $id_job;
 
-        return @$this->_fetchObject( $stmt, new ShapelessConcreteStruct, $id_segment_list );
+        return $this->_fetchObject( $stmt, new ShapelessConcreteStruct, $id_segment_list ) ?? null;
     }
 
     /**

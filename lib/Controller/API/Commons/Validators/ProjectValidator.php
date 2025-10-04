@@ -4,31 +4,37 @@ namespace API\Commons\Validators;
 
 use API\Commons\Exceptions\AuthenticationError;
 use API\Commons\Exceptions\NotFoundException;
-use API\Commons\KleinController;
-use ApiKeys_ApiKeyStruct;
 use Log;
+use Projects_ProjectDao;
+use Projects_ProjectStruct;
+use ReflectionException;
+use Users_UserStruct;
 
 /**
  * @daprecated this should extend Base
  *
  * Class ProjectValidator
- * @package API\V2\Validators
+ * @package    API\V2\Validators
  */
 class ProjectValidator extends Base {
 
     /**
-     * @var ApiKeys_ApiKeyStruct
+     * @var ?Users_UserStruct
      */
-    private $api_record;
-    private $id_project;
+    private ?Users_UserStruct $user = null;
 
     /**
-     * @param ApiKeys_ApiKeyStruct $api_record
+     * @var int
+     */
+    private int $id_project;
+
+    /**
+     * @param Users_UserStruct $user
      *
      * @return $this
      */
-    public function setApiRecord( $api_record ) {
-        $this->api_record = $api_record;
+    public function setUser( Users_UserStruct $user ): ProjectValidator {
+        $this->user = $user;
 
         return $this;
     }
@@ -38,19 +44,26 @@ class ProjectValidator extends Base {
      *
      * @return $this
      */
-    public function setIdProject( $id_project ) {
+    public function setIdProject( $id_project ): ProjectValidator {
         $this->id_project = $id_project;
 
         return $this;
     }
 
     /**
-     * @var \Projects_ProjectStruct
+     * @var ?Projects_ProjectStruct
      */
-    private $project;
-    private $feature;
+    private ?Projects_ProjectStruct $project = null;
+    private ?string                $feature = null;
 
-    public function getProject() {
+    /**
+     * @param Projects_ProjectStruct $project
+     */
+    public function setProject( Projects_ProjectStruct $project ) {
+        $this->project = $project;
+    }
+
+    public function getProject(): Projects_ProjectStruct {
         return $this->project;
     }
 
@@ -58,32 +71,33 @@ class ProjectValidator extends Base {
         $this->feature = $feature;
     }
 
-    public function __construct( KleinController $controller ) {}
-
     /**
      * @return mixed|void
      * @throws AuthenticationError
      * @throws NotFoundException
+     * @throws ReflectionException
      */
-    protected function _validate() {
+    protected function _validate(): void {
 
-        $this->project = \Projects_ProjectDao::findById( $this->id_project );
+        if ( !$this->project ) {
+            $this->project = Projects_ProjectDao::findById( $this->id_project );
+        }
 
-        if ( $this->project == false ) {
-            throw new NotFoundException( "Project Not Found.", 404 );
+        if ( empty( $this->project ) ) {
+            throw new NotFoundException( "Project not found.", 404 );
         }
 
         if ( !$this->validateFeatureEnabled() ) {
-            throw new NotFoundException( "Project Not Found.", 404 );
+            throw new NotFoundException( "Feature not enabled on this project.", 404 );
         }
 
-        if( !$this->inProjectScope() ){
-            throw new NotFoundException( "Project Not Found.", 404 );
+        if ( !$this->inProjectScope() ) {
+            throw new NotFoundException( "You are not allowed to access to this project", 403 );
         }
 
     }
 
-    private function validateFeatureEnabled() {
+    private function validateFeatureEnabled(): bool {
         return $this->feature == null || $this->project->isFeatureEnabled( $this->feature );
     }
 
@@ -91,15 +105,15 @@ class ProjectValidator extends Base {
      * @return bool
      * @throws AuthenticationError
      */
-    private function inProjectScope() {
+    private function inProjectScope(): bool {
 
-        if( !$this->api_record ){
+        if ( !$this->user ) {
             throw new AuthenticationError( "Invalid API key", 401 );
         }
 
-        Log::doJsonLog( $this->api_record->getUser()->email );
+        Log::doJsonLog( $this->user->email );
         Log::doJsonLog( $this->project->id_customer );
 
-        return $this->api_record->getUser()->email == $this->project->id_customer;
+        return $this->user->email == $this->project->id_customer;
     }
 }
